@@ -62,7 +62,7 @@ parser.add_argument('-t', '--threads', help='number of threads', dest='threads',
 parser.add_argument('-d', '--delay', help='delay between requests',
                     dest='delay', type=float)
 parser.add_argument('-v', '--verbose', help='verbose output', dest='verbose',
-                    action='store_true')
+                    action='store_true') 
 parser.add_argument('-s', '--seeds', help='additional seed URLs', dest='seeds',
                     nargs="+", default=[])
 parser.add_argument('--stdout', help='send variables to stdout', dest='std')
@@ -416,5 +416,6 @@ print('%s Results saved in %s%s%s directory' % (good, green, output_dir, end))
 if args.std:
     for string in datasets[args.std]:
         sys.stdout.write(string + '\n')
+
 
 

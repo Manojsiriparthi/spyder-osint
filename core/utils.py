@@ -1,18 +1,18 @@
 import re
-import time
-import json
 import os
-import random
-from urllib.parse import urlparse
+import json
+import math
+import time
 import requests
-from .config import verbose, info, good, bad
+from urllib.parse import urlparse
+from libs.config import good, info, bad
 
 def luhn(card_number):
-    """Validate credit card numbers using Luhn algorithm"""
+    """Validate credit card using Luhn algorithm."""
     def digits_of(n):
         return [int(d) for d in str(n)]
     
-    digits = digits_of(card_number)
+    digits = digits_of(card_number.replace(' ', '').replace('-', ''))
     odd_digits = digits[-1::-2]
     even_digits = digits[-2::-2]
     checksum = sum(odd_digits)
@@ -27,106 +27,96 @@ def proxy_type(proxy_string):
         return {'http': f'http://{host}:{port}', 'https': f'http://{host}:{port}'}
     return None
 
-def is_good_proxy(proxy):
-    """Test if proxy is working"""
+def is_good_proxy(proxy_dict):
+    """Test if proxy is working."""
     try:
-        response = requests.get('http://httpbin.org/ip', proxies=proxy, timeout=5)
+        response = requests.get(
+            'http://httpbin.org/ip',
+            proxies=proxy_dict,
+            timeout=10
+        )
         return response.status_code == 200
     except:
         return False
 
 def top_level(url, fix_protocol=False):
-    """Extract top-level domain from URL"""
-    if fix_protocol and not url.startswith('http'):
-        url = 'http://' + url
-    
+    """Extract top level domain from URL."""
     parsed = urlparse(url)
     domain = parsed.netloc
-    
-    # Extract main domain (remove subdomains)
-    parts = domain.split('.')
-    if len(parts) >= 2:
-        return '.'.join(parts[-2:])
+    if fix_protocol and not parsed.scheme:
+        return urlparse(f"http://{url}").netloc
     return domain
 
-def extract_headers(prompt_text):
-    """Extract headers from prompt text"""
+def extract_headers(prompt_content):
+    """Extract headers from prompt content."""
     headers = {}
-    lines = prompt_text.split('\n')
-    for line in lines:
-        if ':' in line and line.strip():
+    for line in prompt_content.split('\n'):
+        if ':' in line:
             key, value = line.split(':', 1)
             headers[key.strip()] = value.strip()
     return headers
 
-def verb(label, data):
-    """Print verbose output"""
+def verb(category, data):
+    """Verbose output function."""
+    from libs.config import verbose, info
     if verbose:
-        print(f'{info} {label}: {data}')
+        print(f"{info} {category}: {data}")
 
 def is_link(link, processed, files):
-    """Check if URL is a valid link to process"""
-    if not link or link in processed:
+    """Check if link should be processed."""
+    if link in processed:
         return False
     
-    # Skip common file extensions
-    skip_extensions = ['.css', '.js', '.jpg', '.png', '.gif', '.pdf', '.zip', '.rar']
-    for ext in skip_extensions:
-        if link.lower().endswith(ext):
-            files.add(link)
-            return False
+    # Skip common file extensions that aren't crawlable
+    skip_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.pdf', '.zip', '.exe', '.doc', '.docx']
+    if any(link.lower().endswith(ext) for ext in skip_extensions):
+        files.add(link)
+        return False
     
     return True
 
-def entropy(data):
-    """Calculate entropy of string"""
-    if len(data) == 0:
-        return 0
-    
-    entropy = 0
-    for x in range(256):
-        char = chr(x)
-        if char in data:
-            p_x = float(data.count(char)) / len(data)
-            if p_x > 0:
-                import math
-                entropy += - p_x * math.log2(p_x)
+def entropy(string):
+    """Calculate Shannon entropy of a string."""
+    prob = [float(string.count(c)) / len(string) for c in dict.fromkeys(list(string))]
+    entropy = -sum([p * math.log(p) / math.log(2.0) for p in prob])
     return entropy
 
-def regxy(pattern, text, suppress, custom_set):
-    """Apply custom regex pattern"""
+def regxy(regex_pattern, response, suppress, custom_set):
+    """Extract custom regex matches."""
     try:
-        matches = re.findall(pattern, text)
+        pattern = re.compile(regex_pattern, re.IGNORECASE)
+        matches = pattern.findall(response)
         for match in matches:
+            verb('Custom regex', match)
             custom_set.add(match)
-    except Exception as e:
+    except re.error as e:
         if not suppress:
-            print(f'{bad} Regex error: {e}')
+            print(f"{bad} Invalid regex pattern: {e}")
 
-def remove_regex(urls, exclude_pattern):
-    """Remove URLs matching exclude pattern"""
+def remove_regex(links, exclude_pattern):
+    """Remove links matching exclude pattern."""
     if not exclude_pattern:
-        return urls
+        return list(links)
     
-    filtered = set()
-    for url in urls:
-        if not re.search(exclude_pattern, url):
-            filtered.add(url)
-    return filtered
+    pattern = re.compile(exclude_pattern)
+    return [link for link in links if not pattern.search(link)]
 
 def timer(diff, processed):
-    """Calculate timing statistics"""
+    """Calculate timing statistics."""
     minutes = int(diff // 60)
     seconds = int(diff % 60)
-    time_per_request = diff / len(processed) if len(processed) > 0 else 0
+    time_per_request = diff / len(processed) if processed else 0
     return minutes, seconds, time_per_request
 
 def writer(datasets, dataset_names, output_dir):
-    """Write datasets to files"""
+    """Write datasets to files."""
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    
     for dataset, name in zip(datasets, dataset_names):
         if dataset:
-            filename = os.path.join(output_dir, f'{name}.txt')
-            with open(filename, 'w') as f:
+            filepath = os.path.join(output_dir, f"{name}.txt")
+            with open(filepath, 'w') as f:
                 for item in dataset:
                     f.write(str(item) + '\n')
-            print(f'{good} {name.capitalize()} saved to {filename}')
+            print(f"{good} {name.capitalize()} saved to {filepath}")

@@ -1,42 +1,21 @@
 import threading
-from queue import Queue
-from .config import info, bad
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from libs.config import info, run
 
-def flash(function, urls, thread_count):
-    """Execute function on URLs using threading"""
+def flash(function, links, thread_count):
+    """Execute function on links using threading."""
+    print(f"{info} Processing {len(links)} URLs with {thread_count} threads")
     
-    def worker():
-        while True:
-            url = url_queue.get()
-            if url is None:
-                break
+    with ThreadPoolExecutor(max_workers=thread_count) as executor:
+        futures = [executor.submit(function, link) for link in links]
+        
+        completed = 0
+        for future in as_completed(futures):
             try:
-                function(url)
+                future.result()
+                completed += 1
+                if completed % 10 == 0:
+                    print(f"{run} Processed {completed}/{len(links)} URLs")
             except Exception as e:
-                print(f"Error processing {url}: {e}")
-            finally:
-                url_queue.task_done()
-    
-    url_queue = Queue()
-    
-    # Start threads
-    threads = []
-    for _ in range(thread_count):
-        t = threading.Thread(target=worker)
-        t.daemon = True
-        t.start()
-        threads.append(t)
-    
-    # Add URLs to queue
-    for url in urls:
-        url_queue.put(url)
-    
-    # Wait for completion
-    url_queue.join()
-    
-    # Stop threads
-    for _ in range(thread_count):
-        url_queue.put(None)
-    
-    for t in threads:
-        t.join()
+                print(f"Error processing URL: {e}")
+                continue

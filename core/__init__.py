@@ -1,1 +1,1 @@
-# Core package for Spyder OSINT
+# Empty file to make core a package

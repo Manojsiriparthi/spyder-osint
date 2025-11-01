@@ -69,7 +69,7 @@ if not CORE_MODULES_AVAILABLE:
     if args.root:
         print(f"{info} Target: {args.root}")
         print(f"{info} Please ensure all core modules are properly installed.")
-    quit()
+    sys.exit(1)
 
 if not args.root:
     print(f"\n{bad} Please provide a URL with -u/--url")

@@ -5,7 +5,7 @@ def zap(main_url, archive, domain, host, internal, robots, proxies):
     """Initial URL processing and robots.txt fetching"""
     
     # Import here to avoid circular imports
-    from .config import info, good
+    from libs.config import info, good
     
     print(f'{info} Processing initial URL: {main_url}')
     

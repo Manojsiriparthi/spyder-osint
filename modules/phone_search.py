@@ -1,6 +1,7 @@
 import requests
 import re
 from utils.web_scraper import WebScraper
+from bs4 import BeautifulSoup
 
 class PhoneSearch:
     def __init__(self):
@@ -42,7 +43,7 @@ class PhoneSearch:
         
         # Search Google for phone number
         google_results = self._google_search(cleaned_number)
-        results['reports'].extend(google_results)
+        results['reports'].extend(google_results.get('search_results', []))
         
         return results
     
@@ -99,27 +100,42 @@ class PhoneSearch:
         
         return results
     
-    def _google_search(self, number):
-        """Search Google for phone number mentions"""
-        query = f'"{number}" OR "{self._format_phone(number)}"'
-        url = f"https://www.google.com/search?q={query}"
-        
-        content = self.scraper.get_content(url)
-        results = []
-        
-        if content:
-            # Extract search result snippets
-            snippet_pattern = r'<span class="st">([^<]+)</span>'
-            snippets = re.findall(snippet_pattern, content)
-            results.extend(snippets[:5])  # Limit to 5 results
-        
-        return results
-    
-    def _format_phone(self, number):
-        """Format phone number as (XXX) XXX-XXXX"""
-        if len(number) == 10:
-            return f"({number[:3]}) {number[3:6]}-{number[6:]}"
-        return number
+    def _google_search(self, phone_number):
+        """Search for phone number information on Google"""
+        try:
+            query = f'"{phone_number}" OR "{phone_number.replace("-", "")}" OR "{phone_number.replace("(", "").replace(")", "").replace("-", "").replace(" ", "")}"'
+            url = f"https://www.google.com/search?q={query}"
+            
+            content = self.scraper.get_content(url)
+            if not content:
+                return {}
+                
+            soup = BeautifulSoup(content, 'html.parser')
+            
+            results = {
+                'search_results': [],
+                'associated_names': [],
+                'addresses': []
+            }
+            
+            # Extract search results
+            for result in soup.find_all('div', class_='g')[:10]:
+                title_elem = result.find('h3')
+                link_elem = result.find('a')
+                snippet_elem = result.find('span')
+                
+                if title_elem and link_elem:
+                    results['search_results'].append({
+                        'title': title_elem.get_text(),
+                        'url': link_elem.get('href'),
+                        'snippet': snippet_elem.get_text() if snippet_elem else ''
+                    })
+            
+            return results
+            
+        except Exception as e:
+            print(f"Error in Google search: {e}")
+            return {}
     
     def _merge_results(self, main_results, new_results):
         """Merge new results into main results"""

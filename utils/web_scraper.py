@@ -26,20 +26,37 @@ class WebScraper:
             'Connection': 'keep-alive',
         }
     
-    def fetch_page(self, url: str, delay: float = 1.0) -> BeautifulSoup:
-        """Fetch and parse a web page"""
+    def get_page(self, url: str, headers=None, delay: float = 1.0):
+        """Get page content as text"""
         try:
-            # Random delay to avoid rate limiting
             time.sleep(random.uniform(0.5, delay))
             
-            headers = self.get_random_headers()
+            if headers is None:
+                headers = self.get_random_headers()
+            
             response = self.session.get(url, headers=headers, timeout=10)
             response.raise_for_status()
             
-            return BeautifulSoup(response.content, 'html.parser')
+            return response.text
             
         except requests.RequestException as e:
             print(f"Error fetching {url}: {e}")
+            return None
+
+    def get_content(self, url, headers=None):
+        """Get content from URL - alias for get_page method"""
+        return self.get_page(url, headers)
+    
+    def fetch_page(self, url: str, delay: float = 1.0) -> BeautifulSoup:
+        """Fetch and parse a web page"""
+        try:
+            content = self.get_page(url, delay=delay)
+            if content:
+                return BeautifulSoup(content, 'html.parser')
+            return None
+            
+        except Exception as e:
+            print(f"Error parsing {url}: {e}")
             return None
     
     def search_google(self, query: str, num_results: int = 10) -> list:

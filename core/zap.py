@@ -1,49 +1,36 @@
 import requests
-from urllib.parse import urljoin, urlparse
-from .config import info, bad, good, verbose
+from urllib.parse import urljoin
 
 def zap(main_url, archive, domain, host, internal, robots, proxies):
     """Initial URL processing and robots.txt fetching"""
     
-    print(f'{info} Initializing crawl for {main_url}')
+    # Import here to avoid circular imports
+    from .config import info, good
     
-    # Try to fetch robots.txt
+    print(f'{info} Processing initial URL: {main_url}')
+    
+    # Fetch robots.txt
     try:
         robots_url = urljoin(main_url, '/robots.txt')
-        response = requests.get(robots_url, timeout=10)
+        proxy = proxies[0] if proxies and proxies[0] else None
+        response = requests.get(robots_url, proxies=proxy, timeout=10)
         
         if response.status_code == 200:
             print(f'{good} Found robots.txt')
-            robots_content = response.text
-            
-            # Parse robots.txt for URLs
-            for line in robots_content.split('\n'):
+            lines = response.text.split('\n')
+            for line in lines:
                 line = line.strip()
                 if line.startswith('Disallow:') or line.startswith('Allow:'):
                     path = line.split(':', 1)[1].strip()
                     if path and path != '/':
-                        full_url = urljoin(main_url, path)
-                        robots.add(full_url)
-                        if verbose:
-                            print(f'{info} Found in robots.txt: {path}')
-                            
-        else:
-            print(f'{info} No robots.txt found')
-            
+                        robots.add(path)
+                        # Add to internal URLs if it's a valid path
+                        if not path.startswith('http'):
+                            full_url = urljoin(main_url, path)
+                            internal.add(full_url)
     except Exception as e:
-        if verbose:
-            print(f'{bad} Error fetching robots.txt: {str(e)}')
+        print(f'{info} No robots.txt found or error: {e}')
     
-    # Add common paths to check
-    common_paths = [
-        '/admin', '/login', '/wp-admin', '/phpmyadmin', 
-        '/admin.php', '/administrator', '/wp-login.php',
-        '/sitemap.xml', '/sitemap.txt', '/.well-known/',
-        '/api', '/v1', '/v2', '/swagger', '/docs'
-    ]
-    
-    for path in common_paths:
-        full_url = urljoin(main_url, path)
-        robots.add(full_url)
-    
-    print(f'{info} Added {len(robots)} URLs from robots.txt and common paths')
+    # Handle Wayback Machine integration (placeholder)
+    if archive:
+        print(f'{info} Archive.org integration not yet implemented')

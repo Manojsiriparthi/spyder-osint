@@ -1,1 +1,1 @@
-# Core package initialization
+# Core package for Spyder OSINT

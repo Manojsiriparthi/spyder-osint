@@ -77,6 +77,26 @@ def display_phone_info(phone_data):
         for name in phone_data['associated_names'][:5]:
             print(f"  • {name}")
 
+def display_email_info(email_data):
+    """Display email information"""
+    print("\n📧 EMAIL INFORMATION")
+    print("-" * 40)
+    print(f"Email: {email_data.get('email', 'N/A')}")
+    print(f"Domain: {email_data.get('domain', 'N/A')}")
+    print(f"Valid: {email_data.get('valid', 'Unknown')}")
+    
+    if email_data.get('associated_accounts'):
+        print("\n🔗 Associated Accounts:")
+        for account in email_data['associated_accounts'][:5]:
+            if isinstance(account, dict):
+                print(f"  • {account.get('platform', 'Unknown')}")
+    
+    if email_data.get('breaches'):
+        print("\n🚨 Security Breaches:")
+        for breach in email_data['breaches'][:3]:
+            if isinstance(breach, dict):
+                print(f"  • {breach.get('name', 'Unknown breach')}")
+
 def display_social_media(social_data):
     """Display social media findings"""
     print("\n📱 SOCIAL MEDIA ACCOUNTS")

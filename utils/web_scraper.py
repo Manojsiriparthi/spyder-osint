@@ -20,15 +20,14 @@ class WebScraper:
         self.session.mount("https://", adapter)
         
         self.user_agents = [
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebLib/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         ]
     
     def get_content(self, url, delay=1):
-        """Get web page content with proper headers"""
+        """Get web page content with proper headers and error handling"""
         try:
-            # Random delay to avoid rate limiting
             time.sleep(random.uniform(0.5, delay))
             
             headers = {
@@ -43,11 +42,10 @@ class WebScraper:
             
             response = self.session.get(url, headers=headers, timeout=10)
             response.raise_for_status()
-            
             return response.text
             
         except requests.RequestException as e:
-            print(f"    Request failed: {e}")
+            print(f"    Request failed for {url}: {e}")
             return None
         except Exception as e:
             print(f"    Unexpected error: {e}")

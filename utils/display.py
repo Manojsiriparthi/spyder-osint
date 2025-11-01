@@ -103,8 +103,14 @@ SPYDER OSINT - Person Intelligence Gathering
             for source, images in results['images'].items():
                 print(f"{source.replace('_', ' ').title()}: {len(images)} images")
 
+# Global functions for compatibility with main.py imports
+def print_banner():
+    """Print application banner - global function"""
+    display = Display()
+    display.print_banner()
+
 def display_results(results):
-    """Display formatted results"""
+    """Display formatted results - global function"""
     display = Display()
     display.print_results(results)
 

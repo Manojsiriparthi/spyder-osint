@@ -3,22 +3,25 @@ import os
 import json
 import math
 import time
+import csv
 import requests
 from urllib.parse import urlparse
 from libs.config import good, info, bad
 
 def luhn(card_number):
-    """Validate credit card using Luhn algorithm."""
-    def digits_of(n):
-        return [int(d) for d in str(n)]
+    """Validate credit card numbers using Luhn algorithm"""
+    def luhn_checksum(card_num):
+        def digits_of(n):
+            return [int(d) for d in str(n)]
+        digits = digits_of(card_num)
+        odd_digits = digits[-1::-2]
+        even_digits = digits[-2::-2]
+        checksum = sum(odd_digits)
+        for d in even_digits:
+            checksum += sum(digits_of(d*2))
+        return checksum % 10
     
-    digits = digits_of(card_number.replace(' ', '').replace('-', ''))
-    odd_digits = digits[-1::-2]
-    even_digits = digits[-2::-2]
-    checksum = sum(odd_digits)
-    for d in even_digits:
-        checksum += sum(digits_of(d*2))
-    return checksum % 10 == 0
+    return luhn_checksum(card_number) == 0
 
 def proxy_type(proxy_string):
     """Parse proxy string into dict format"""
@@ -27,96 +30,109 @@ def proxy_type(proxy_string):
         return {'http': f'http://{host}:{port}', 'https': f'http://{host}:{port}'}
     return None
 
-def is_good_proxy(proxy_dict):
-    """Test if proxy is working."""
+def is_good_proxy(proxy):
+    """Test if proxy is working"""
     try:
-        response = requests.get(
-            'http://httpbin.org/ip',
-            proxies=proxy_dict,
-            timeout=10
-        )
+        response = requests.get('http://httpbin.org/ip', 
+                              proxies=proxy, timeout=10)
         return response.status_code == 200
     except:
         return False
 
-def top_level(url, fix_protocol=False):
-    """Extract top level domain from URL."""
-    parsed = urlparse(url)
-    domain = parsed.netloc
-    if fix_protocol and not parsed.scheme:
-        return urlparse(f"http://{url}").netloc
-    return domain
+def top_level(url):
+    """Extract top level domain from URL"""
+    try:
+        parsed = urlparse(url)
+        domain_parts = parsed.netloc.split('.')
+        if len(domain_parts) >= 2:
+            return f"{domain_parts[-2]}.{domain_parts[-1]}"
+        return parsed.netloc
+    except:
+        return ""
 
-def extract_headers(prompt_content):
-    """Extract headers from prompt content."""
-    headers = {}
-    for line in prompt_content.split('\n'):
-        if ':' in line:
-            key, value = line.split(':', 1)
-            headers[key.strip()] = value.strip()
-    return headers
+def extract_headers(response):
+    """Extract interesting headers from HTTP response"""
+    interesting_headers = [
+        'server', 'x-powered-by', 'x-frame-options',
+        'content-security-policy', 'x-content-type-options'
+    ]
+    
+    extracted = {}
+    for header in interesting_headers:
+        value = response.headers.get(header)
+        if value:
+            extracted[header] = value
+    
+    return extracted
 
-def verb(category, data):
-    """Verbose output function."""
-    from libs.config import verbose, info
+def verb(message, verbose):
+    """Print verbose message if verbose mode is enabled"""
     if verbose:
-        print(f"{info} {category}: {data}")
+        print(f"[VERBOSE] {message}")
 
-def is_link(link, processed, files):
-    """Check if link should be processed."""
-    if link in processed:
+def is_link(url, main_url):
+    """Check if URL is a valid link"""
+    try:
+        parsed = urlparse(url)
+        return parsed.scheme in ['http', 'https'] and parsed.netloc
+    except:
         return False
-    
-    # Skip common file extensions that aren't crawlable
-    skip_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.pdf', '.zip', '.exe', '.doc', '.docx']
-    if any(link.lower().endswith(ext) for ext in skip_extensions):
-        files.add(link)
-        return False
-    
-    return True
 
 def entropy(string):
-    """Calculate Shannon entropy of a string."""
+    """Calculate Shannon entropy of a string"""
     prob = [float(string.count(c)) / len(string) for c in dict.fromkeys(list(string))]
-    entropy = -sum([p * math.log(p) / math.log(2.0) for p in prob])
-    return entropy
+    entropy_val = -sum([p * math.log(p) / math.log(2.0) for p in prob])
+    return entropy_val
 
-def regxy(regex_pattern, response, suppress, custom_set):
-    """Extract custom regex matches."""
+def regxy(response, pattern):
+    """Apply custom regex pattern to response"""
     try:
-        pattern = re.compile(regex_pattern, re.IGNORECASE)
-        matches = pattern.findall(response)
-        for match in matches:
-            verb('Custom regex', match)
-            custom_set.add(match)
-    except re.error as e:
-        if not suppress:
-            print(f"{bad} Invalid regex pattern: {e}")
+        matches = re.findall(pattern, response, re.IGNORECASE)
+        return set(matches) if matches else set()
+    except:
+        return set()
 
-def remove_regex(links, exclude_pattern):
-    """Remove links matching exclude pattern."""
-    if not exclude_pattern:
-        return list(links)
-    
-    pattern = re.compile(exclude_pattern)
-    return [link for link in links if not pattern.search(link)]
+def remove_regex(data, pattern):
+    """Remove items matching regex pattern"""
+    try:
+        compiled_pattern = re.compile(pattern)
+        return {item for item in data if not compiled_pattern.search(item)}
+    except:
+        return data
 
-def timer(diff, processed):
-    """Calculate timing statistics."""
-    minutes = int(diff // 60)
-    seconds = int(diff % 60)
-    time_per_request = diff / len(processed) if processed else 0
-    return minutes, seconds, time_per_request
+def timer(start_time):
+    """Calculate elapsed time"""
+    return time.time() - start_time
 
-def writer(datasets, dataset_names, output_dir):
-    """Write datasets to files."""
+def writer(data, export_format, output_dir):
+    """Write data to file in specified format"""
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     
-    for dataset, name in zip(datasets, dataset_names):
-        if dataset:
-            filepath = os.path.join(output_dir, f"{name}.txt")
-            with open(filepath, 'w') as f:
-                for item in dataset:
-                    f.write(str(item) + '\n')
-            print(f"{good} {name.capitalize()} saved to {filepath}")
+    timestamp = int(time.time())
+    
+    if export_format == 'json':
+        filename = os.path.join(output_dir, f'spyder_results_{timestamp}.json')
+        with open(filename, 'w') as f:
+            json.dump(data, f, indent=2, default=list)
+    
+    elif export_format == 'csv':
+        filename = os.path.join(output_dir, f'spyder_results_{timestamp}.csv')
+        with open(filename, 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(['Type', 'Data'])
+            for key, values in data.items():
+                for value in values:
+                    writer.writerow([key, value])
+    
+    return filename
+
+def format_dict(data):
+    """Format dictionary for pretty printing"""
+    formatted = {}
+    for key, value in data.items():
+        if isinstance(value, set):
+            formatted[key] = list(value)
+        else:
+            formatted[key] = value
+    return formatted

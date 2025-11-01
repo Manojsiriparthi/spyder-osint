@@ -32,6 +32,7 @@ try:
     CORE_MODULES_AVAILABLE = True
 except ImportError as e:
     print(f"{bad} Missing core module: {e}")
+    print(f"{info} Please ensure all core modules are created in the core/ directory")
     CORE_MODULES_AVAILABLE = False
 
 warnings.filterwarnings('ignore')
@@ -65,10 +66,14 @@ parser.add_argument('--wayback', help='fetch URLs from archive.org as seeds', de
 args = parser.parse_args()
 
 if not CORE_MODULES_AVAILABLE:
-    print(f"{bad} Core modules not available. Basic functionality only.")
+    print(f"{bad} Core modules not available. Please create the missing modules:")
+    print(f"{info} - core/flash.py (main crawling engine)")
+    print(f"{info} - core/regex.py (regex patterns)")  
+    print(f"{info} - core/utils.py (utility functions)")
+    print(f"{info} - core/requester.py (HTTP requester)")
+    print(f"{info} - core/zap.py (initial processing)")
     if args.root:
         print(f"{info} Target: {args.root}")
-        print(f"{info} Please ensure all core modules are properly installed.")
     sys.exit(1)
 
 if not args.root:
@@ -80,6 +85,74 @@ if not args.root:
 print(f"{run} Target URL: {args.root}")
 print(f"{info} Basic URL validation and setup complete")
 print(f"{yellow} Core crawling modules need to be implemented for full functionality{end}")
+
+# Add main execution logic
+if args.root:
+    start_time = time.time()
+    
+    # Initialize data structures
+    failed = set()
+    processed = set()
+    internal = set()
+    external = set()
+    files = set()
+    intel = set()
+    robots = set()
+    custom = set()
+    scripts = set()
+    
+    # Parse domain info
+    parsed_url = urlparse(args.root)
+    host = parsed_url.netloc
+    domain = top_level(args.root) if CORE_MODULES_AVAILABLE else parsed_url.netloc
+    
+    # Set defaults
+    level = args.level or 2
+    delay = args.delay or 0
+    timeout = args.timeout or 10
+    threads = args.threads or 10
+    
+    # Setup user agents
+    user_agents = []
+    if args.user_agent:
+        user_agents = [args.user_agent]
+    else:
+        user_agents = [
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36'
+        ]
+    
+    # Initial processing
+    zap(args.root, args.archive, domain, host, internal, robots, args.proxies or [])
+    
+    # Main crawling
+    flash(args.root, args.cook, None, timeout, host, args.proxies or [], 
+          user_agents, failed, processed, internal, external, files, 
+          intel, robots, custom, scripts, level, delay, args.regex, args.exclude)
+    
+    # Results
+    elapsed = timer(start_time)
+    print(f"\n{good} Crawling completed in {elapsed:.2f} seconds")
+    print(f"{info} Internal URLs: {len(internal)}")
+    print(f"{info} External URLs: {len(external)}")
+    print(f"{info} Files found: {len(files)}")
+    print(f"{info} Intelligence data: {len(intel)}")
+    print(f"{info} Scripts found: {len(scripts)}")
+    
+    # Export results if requested
+    if args.export and args.output:
+        results = {
+            'internal_urls': internal,
+            'external_urls': external,
+            'files': files,
+            'intelligence': intel,
+            'scripts': scripts,
+            'custom': custom
+        }
+        
+        filename = writer(results, args.export, args.output)
+        print(f"{good} Results exported to: {filename}")
 
 
 

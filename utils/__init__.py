@@ -1,3 +1,3 @@
 """
-Spyder OSINT - Utility functions
+Utility modules for Spyder OSINT
 """

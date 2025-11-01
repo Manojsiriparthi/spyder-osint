@@ -1,3 +1,3 @@
 """
-Spyder OSINT - Core search modules
+Search modules for Spyder OSINT
 """

@@ -3,60 +3,45 @@ import requests
 from bs4 import BeautifulSoup
 from utils.web_scraper import WebScraper
 import json
+import urllib.parse
 
 class SocialMediaSearch:
     def __init__(self):
         self.scraper = WebScraper()
         self.platforms = {
-            'facebook': 'https://www.google.com/search?q=site:facebook.com+',
-            'twitter': 'https://www.google.com/search?q=site:twitter.com+',
-            'instagram': 'https://www.google.com/search?q=site:instagram.com+',
-            'linkedin': 'https://www.google.com/search?q=site:linkedin.com+',
-            'tiktok': 'https://www.google.com/search?q=site:tiktok.com+',
-            'youtube': 'https://www.google.com/search?q=site:youtube.com+'
+            'facebook': 'site:facebook.com',
+            'twitter': 'site:twitter.com',
+            'linkedin': 'site:linkedin.com',
+            'instagram': 'site:instagram.com'
         }
     
-    def search_all_platforms(self, name, location=""):
-        """Search across all social media platforms using Google site search"""
+    def search_all_platforms(self, name: str) -> dict:
+        """Search all social media platforms"""
         results = {}
         
-        for platform, base_url in self.platforms.items():
-            print(f"  Searching {platform}...")
-            try:
-                platform_results = self._search_platform(platform, name, location, base_url)
-                results[platform] = platform_results
-            except Exception as e:
-                print(f"    Error searching {platform}: {e}")
-                results[platform] = []
+        for platform, site_query in self.platforms.items():
+            results[platform] = self.search_platform(name, platform, site_query)
         
         return results
     
-    def _search_platform(self, platform, name, location, base_url):
-        """Search specific platform via Google"""
-        query = f'"{name}" {location}'.strip()
-        url = base_url + query.replace(' ', '+')
+    def search_platform(self, name: str, platform: str, site_query: str) -> list:
+        """Search specific social media platform"""
+        accounts = []
         
-        content = self.scraper.get_content(url)
-        if not content:
-            return []
-        
-        return self._parse_google_results(content, platform)
-    
-    def _parse_google_results(self, html, platform):
-        """Parse Google search results for social media profiles"""
-        results = []
-        soup = BeautifulSoup(html, 'html.parser')
-        
-        # Look for search result links
-        for result_div in soup.find_all('div', class_=re.compile(r'g\b')):
-            link_element = result_div.find('a', href=True)
-            title_element = result_div.find('h3')
+        try:
+            query = f'{site_query} "{name}"'
+            search_results = self.scraper.search_google(query, num_results=5)
             
-            if link_element and title_element and platform in link_element['href']:
-                results.append({
-                    'name': title_element.get_text().strip(),
-                    'url': link_element['href'],
-                    'platform': platform
-                })
+            for result in search_results:
+                if platform in result.get('url', '').lower():
+                    accounts.append({
+                        'name': result.get('title', ''),
+                        'url': result.get('url', ''),
+                        'platform': platform,
+                        'snippet': result.get('snippet', '')
+                    })
         
-        return results[:5]  # Limit results per platform
+        except Exception as e:
+            print(f"Error searching {platform}: {e}")
+        
+        return accounts

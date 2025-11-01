@@ -1,9 +1,26 @@
 import json
 from datetime import datetime
+from colorama import Fore, Back, Style, init
+import sys
 
-def print_banner():
-    """Print application banner"""
-    banner = """
+# Initialize colorama
+init(autoreset=True)
+
+class Display:
+    def __init__(self):
+        self.colors = {
+            'header': Fore.CYAN + Style.BRIGHT,
+            'success': Fore.GREEN + Style.BRIGHT,
+            'warning': Fore.YELLOW + Style.BRIGHT,
+            'error': Fore.RED + Style.BRIGHT,
+            'info': Fore.BLUE + Style.BRIGHT,
+            'reset': Style.RESET_ALL
+        }
+    
+    def print_banner(self):
+        """Print application banner"""
+        banner = f"""
+{self.colors['header']}
     ███████╗██████╗ ██╗   ██╗██████╗ ███████╗██████╗ 
     ██╔════╝██╔══██╗╚██╗ ██╔╝██╔══██╗██╔════╝██╔══██╗
     ███████╗██████╔╝ ╚████╔╝ ██║  ██║█████╗  ██████╔╝
@@ -13,118 +30,83 @@ def print_banner():
                     
                     OSINT Intelligence Gathering
                     Version 2.0 | github.com/spyder-osint
-    """
-    print(banner)
+{self.colors['reset']}
+============================================================
+SPYDER OSINT - Person Intelligence Gathering
+============================================================
+        """
+        print(banner)
+    
+    def print_header(self, text: str):
+        """Print section header"""
+        print(f"\n{self.colors['header']}{'='*60}")
+        print(f"{text}")
+        print(f"{'='*60}{self.colors['reset']}")
+    
+    def print_success(self, text: str):
+        """Print success message"""
+        print(f"{self.colors['success']}[+] {text}{self.colors['reset']}")
+    
+    def print_error(self, text: str):
+        """Print error message"""
+        print(f"{self.colors['error']}[-] {text}{self.colors['reset']}")
+    
+    def print_warning(self, text: str):
+        """Print warning message"""
+        print(f"{self.colors['warning']}[!] {text}{self.colors['reset']}")
+    
+    def print_info(self, text: str):
+        """Print info message"""
+        print(f"{self.colors['info']}[*] {text}{self.colors['reset']}")
+    
+    def print_results(self, results: dict):
+        """Print formatted investigation results"""
+        if not results:
+            self.print_warning("No results found")
+            return
+        
+        # Personal Information
+        if 'person' in results:
+            self.print_header("📋 PERSONAL INFORMATION")
+            person = results['person']
+            print(f"Name: {person.get('name', 'N/A')}")
+            print(f"Location: {person.get('location', 'N/A')}")
+            
+            if person.get('addresses'):
+                print("\n🏠 Possible Addresses:")
+                for addr in person['addresses']:
+                    print(f"  • {addr}")
+            
+            if person.get('relatives'):
+                print("\n👨‍👩‍👧‍👦 Possible Relatives:")
+                for rel in person['relatives']:
+                    print(f"  • {rel}")
+        
+        # Social Media
+        if 'social' in results:
+            self.print_header("📱 SOCIAL MEDIA ACCOUNTS")
+            social = results['social']
+            
+            for platform, accounts in social.items():
+                if accounts:
+                    print(f"\n{platform.upper()}:")
+                    for account in accounts:
+                        print(f"  • {account.get('name', 'N/A')}")
+                        if account.get('url'):
+                            print(f"    URL: {account['url']}")
+        
+        # Images
+        if 'images' in results:
+            total_images = sum(len(imgs) for imgs in results['images'].values())
+            self.print_header("📸 IMAGES FOUND")
+            print(f"Total images found: {total_images}")
+            for source, images in results['images'].items():
+                print(f"{source.replace('_', ' ').title()}: {len(images)} images")
 
 def display_results(results):
     """Display formatted results"""
-    print("\n" + "="*80)
-    print("INVESTIGATION RESULTS")
-    print("="*80)
-    
-    # Person Information
-    if 'person' in results:
-        display_person_info(results['person'])
-    
-    # Phone Information
-    if 'phone' in results:
-        display_phone_info(results['phone'])
-    
-    # Email Information
-    if 'email' in results:
-        display_email_info(results['email'])
-    
-    # Social Media
-    if 'social' in results:
-        display_social_media(results['social'])
-    
-    # Images
-    if 'images' in results:
-        display_images(results['images'])
-
-def display_person_info(person_data):
-    """Display person information"""
-    print("\n📋 PERSONAL INFORMATION")
-    print("-" * 40)
-    print(f"Name: {person_data.get('name', 'N/A')}")
-    print(f"Location: {person_data.get('location', 'N/A')}")
-    
-    if person_data.get('possible_addresses'):
-        print("\n🏠 Possible Addresses:")
-        for addr in person_data['possible_addresses'][:5]:
-            print(f"  • {addr}")
-    
-    if person_data.get('relatives'):
-        print("\n👨‍👩‍👧‍👦 Possible Relatives:")
-        for rel in person_data['relatives'][:5]:
-            print(f"  • {rel}")
-    
-    if person_data.get('occupations'):
-        print("\n💼 Occupation Information:")
-        for occ in person_data['occupations'][:3]:
-            print(f"  • {occ}")
-
-def display_phone_info(phone_data):
-    """Display phone information"""
-    print("\n📞 PHONE INFORMATION")
-    print("-" * 40)
-    print(f"Number: {phone_data.get('phone_number', 'N/A')}")
-    print(f"Location: {phone_data.get('location', 'N/A')}")
-    print(f"Carrier: {phone_data.get('carrier', 'N/A')}")
-    
-    if phone_data.get('associated_names'):
-        print("\n👤 Associated Names:")
-        for name in phone_data['associated_names'][:5]:
-            print(f"  • {name}")
-
-def display_email_info(email_data):
-    """Display email information"""
-    print("\n📧 EMAIL INFORMATION")
-    print("-" * 40)
-    print(f"Email: {email_data.get('email', 'N/A')}")
-    print(f"Domain: {email_data.get('domain', 'N/A')}")
-    print(f"Valid: {email_data.get('valid', 'Unknown')}")
-    
-    if email_data.get('associated_accounts'):
-        print("\n🔗 Associated Accounts:")
-        for account in email_data['associated_accounts'][:5]:
-            if isinstance(account, dict):
-                print(f"  • {account.get('platform', 'Unknown')}")
-    
-    if email_data.get('breaches'):
-        print("\n🚨 Security Breaches:")
-        for breach in email_data['breaches'][:3]:
-            if isinstance(breach, dict):
-                print(f"  • {breach.get('name', 'Unknown breach')}")
-
-def display_social_media(social_data):
-    """Display social media findings"""
-    print("\n📱 SOCIAL MEDIA ACCOUNTS")
-    print("-" * 40)
-    
-    for platform, accounts in social_data.items():
-        if accounts:
-            print(f"\n{platform.upper()}:")
-            for account in accounts[:3]:
-                if isinstance(account, dict):
-                    name = account.get('name') or account.get('username', 'N/A')
-                    print(f"  • {name}")
-                    if account.get('url'):
-                        print(f"    URL: {account['url']}")
-
-def display_images(image_data):
-    """Display image findings"""
-    print("\n📸 FOUND IMAGES")
-    print("-" * 40)
-    
-    total_images = 0
-    for source, images in image_data.items():
-        if images:
-            print(f"\n{source.replace('_', ' ').title()}: {len(images)} images")
-            total_images += len(images)
-    
-    print(f"\nTotal images found: {total_images}")
-    print("Note: Image URLs saved to results file")
+    display = Display()
+    display.print_results(results)
 
 def save_results_json(name, results, filename=None):
     """Save results to JSON file"""
